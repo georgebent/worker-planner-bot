@@ -33,10 +33,22 @@ class AddUserCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $email = $input->getArgument('email');
-        $telegram = $input->getArgument('telegram');
+        $email = (string) $input->getArgument('email');
+        $telegram = (string) $input->getArgument('telegram');
+
+        $existingUser = $this->entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
+        if ($existingUser) {
+            $output->writeln(sprintf('User with email `%s` already exists.', $email));
+
+            return Command::FAILURE;
+        }
 
         $telegramReceiver = $this->entityManager->getRepository(Receiver::class)->findOneBy(['name' => 'telegram']);
+        if (!$telegramReceiver instanceof Receiver) {
+            $output->writeln('Receiver `telegram` was not found. Please create it before adding users.');
+
+            return Command::FAILURE;
+        }
 
         $user = new User();
         $user->setEmail($email);
@@ -47,7 +59,6 @@ class AddUserCommand extends Command
         $userReceiver->setToken($telegram);
         $userReceiver->setReceiver($telegramReceiver);
         $userReceiver->setAuthor($user);
-
 
         $this->entityManager->persist($userReceiver);
         $this->entityManager->flush();
